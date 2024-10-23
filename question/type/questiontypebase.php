@@ -1137,7 +1137,9 @@ class question_type {
      * @param object $answer the DB row from the question_answers table plus extra answer fields.
      * @return question_answer
      */
-    protected function make_answer($answer) {
+    // TWEAK START LDESIGN.
+    public function make_answer($answer) {
+        // TWEAK END LDESIGN.
         return new question_answer($answer->id, $answer->answer,
                     $answer->fraction, $answer->feedback, $answer->feedbackformat);
     }

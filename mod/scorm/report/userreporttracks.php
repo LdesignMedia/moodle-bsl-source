@@ -51,7 +51,10 @@ $PAGE->set_url($url);
 // Checking login +logging +getting context.
 require_login($course, false, $cm);
 $contextmodule = context_module::instance($cm->id);
-require_capability('mod/scorm:viewreport', $contextmodule);
+// TWEAK START LDESIGN.
+$context = context_course::instance(1, MUST_EXIST);
+require_capability('block/dshop:manager', $context);
+// TWEAK END LDESIGN.
 
 // Check user has group access.
 if (!groups_user_groups_visible($course, $userid, $cm)) {

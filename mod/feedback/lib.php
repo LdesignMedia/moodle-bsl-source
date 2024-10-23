@@ -2137,12 +2137,16 @@ function feedback_update_values() {
  * @param int $groupid
  * @param int $courseid
  * @param bool $ignore_empty if this is set true so empty values are not delivered
+ * @param $filteringdata
  * @return array the value-records
  */
+// TWEAK START LDESIGN.
 function feedback_get_group_values($item,
                                    $groupid = false,
                                    $courseid = false,
-                                   $ignore_empty = false) {
+                                   $ignore_empty = false,
+                                   $filteringdata = false) {
+    // TWEAK END LDESIGN.
 
     global $CFG, $DB;
 
@@ -2157,7 +2161,8 @@ function feedback_get_group_values($item,
             $ignore_empty_select = "";
         }
 
-        $query = 'SELECT fbv .  *
+        // TWEAK START LDESIGN.
+        $query = 'SELECT fbv .  *, fbc.timemodified
                     FROM {feedback_value} fbv, {feedback_completed} fbc, {groups_members} gm
                    WHERE fbv.item = :itemid
                          AND fbv.completed = fbc.id
@@ -2165,6 +2170,7 @@ function feedback_get_group_values($item,
                          '.$ignore_empty_select.'
                          AND gm.groupid = :groupid
                 ORDER BY fbc.timemodified';
+        // TWEAK END LDESIGN.
         $params += array('itemid' => $item->id, 'groupid' => $groupid);
         $values = $DB->get_records_sql($query, $params);
 
@@ -2185,6 +2191,13 @@ function feedback_get_group_values($item,
         } else {
             $select = "item = :itemid ".$ignore_empty_select;
             $params += array('itemid' => $item->id);
+            // TWEAK START LDESIGN.
+            if (!empty($filteringdata)) {
+                $select .= ' AND fbc.timemodified BETWEEN :from AND :till';
+                $params += ['from' => $filteringdata->from, 'till' => $filteringdata->till];
+            }
+            // TWEAK END LDESIGN.
+
             $values = $DB->get_records_select('feedback_value', $select, $params);
         }
     }

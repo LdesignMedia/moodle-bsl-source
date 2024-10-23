@@ -301,9 +301,13 @@ class mod_feedback_structure {
      * If $groupid or $this->courseid is set, the records are filtered by the group/course
      *
      * @param int $groupid
+     * @param $filterdata
+     *
      * @return mixed array of found completeds otherwise false
      */
-    public function count_completed_responses($groupid = 0) {
+    // TWEAK START LDESIGN.
+    public function count_completed_responses($groupid = 0, $filterdata = false) {
+        // TWEAK END LDESIGN.
         global $DB;
         if (intval($groupid) > 0) {
             $query = "SELECT COUNT(DISTINCT fbc.id)
@@ -320,6 +324,13 @@ class mod_feedback_structure {
             $query = "SELECT COUNT(fbc.id) FROM {feedback_completed} fbc WHERE fbc.feedback = :feedback";
         }
         $params = ['feedback' => $this->feedback->id, 'groupid' => $groupid, 'courseid' => $this->courseid];
+        // TWEAK START LDESIGN.
+        if (!empty($filterdata)) {
+            $query .= ' AND fbc.timemodified BETWEEN :from AND :till';
+            $params += ['from' => $filterdata->from, 'till' => $filterdata->till];
+        }
+        // TWEAK END LDESIGN.
+
         return $DB->get_field_sql($query, $params);
     }
 

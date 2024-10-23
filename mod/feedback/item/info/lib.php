@@ -107,15 +107,20 @@ class feedback_item_info extends feedback_item_base {
      * @param stdClass $item the db-object from feedback_item
      * @param int|false $groupid
      * @param int $courseid
+     * @param $filteringdata
+     *
      * @return stdClass
      */
-    protected function get_analysed($item, $groupid = false, $courseid = false) {
-
+    // TWEAK START LDESIGN.
+    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
+        // TWEAK END LDESIGN.
         $presentation = $item->presentation;
         $analysed_val = new stdClass();
         $analysed_val->data = null;
         $analysed_val->name = $item->name;
-        $values = feedback_get_group_values($item, $groupid, $courseid);
+        // TWEAK START LDESIGN.
+        $values = feedback_get_group_values($item, $groupid, $courseid, false, $filteringdata);
+        // TWEAK END LDESIGN.
         if ($values) {
             $data = array();
             foreach ($values as $value) {
@@ -152,9 +157,11 @@ class feedback_item_info extends feedback_item_base {
                 userdate($value->value) : $value->value;
     }
 
-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
+    // TWEAK START LDESIGN.
+    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
         echo "<table class=\"analysis itemtype_{$item->typ}\">";
-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
+        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
+        // TWEAK END LDESIGN.
         $data = $analysed_item->data;
         if (is_array($data)) {
             echo '<tr><th class="text-start">';
@@ -175,10 +182,12 @@ class feedback_item_info extends feedback_item_base {
         echo '</table>';
     }
 
+    // TWEAK START LDESIGN.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
-                             $groupid, $courseid = false) {
-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
+                             $groupid, $courseid = false, object $formdata) {
+        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
+        // TWEAK END LDESIGN.
 
         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);

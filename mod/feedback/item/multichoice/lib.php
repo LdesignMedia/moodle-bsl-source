@@ -104,9 +104,13 @@ class feedback_item_multichoice extends feedback_item_base {
      * @param stdClass $item the db-object from feedback_item
      * @param int $groupid
      * @param int $courseid
+     * @param bool $filteringdata
+     *
      * @return array|null
      */
-    protected function get_analysed($item, $groupid = false, $courseid = false) {
+    // TWEAK START LDESIGN.
+    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
+        // TWEAK END LDESIGN.
         $info = $this->get_info($item);
 
         $analysed_item = array();
@@ -121,7 +125,9 @@ class feedback_item_multichoice extends feedback_item_base {
         }
 
         //get the values
-        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item));
+        // TWEAK START LDESIGN.
+        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item), $filteringdata);
+        // TWEAK END LDESIGN.
         if (!$values) {
             return null;
         }
@@ -202,10 +208,12 @@ class feedback_item_multichoice extends feedback_item_base {
         return $printval;
     }
 
-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
+    // TWEAK START LDESIGN.
+    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
         global $OUTPUT;
 
-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
+        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
+        // TWEAK END LDESIGN.
         if ($analysed_item) {
             $itemname = $analysed_item[1];
             echo "<table class=\"analysis itemtype_{$item->typ}\">";
@@ -246,11 +254,13 @@ class feedback_item_multichoice extends feedback_item_base {
         }
     }
 
+    // TWEAK START LDESIGN.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
-                             $groupid, $courseid = false) {
+                             $groupid, $courseid = false, object $formdata = null) {
 
-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
+        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
+        // TWEAK END LDESIGN.
         if (!$analysed_item) {
             return $row_offset;
         }

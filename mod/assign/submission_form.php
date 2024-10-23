@@ -44,6 +44,29 @@ class mod_assign_submission_form extends moodleform {
         global $USER;
         $mform = $this->_form;
         list($assign, $data) = $this->_customdata;
+        // TWEAK START LDESIGN.
+        global $DB;
+        $currentinstanceid = (int)$assign->get_instance()->id;
+        $sql = 'SELECT *
+                FROM {dshop_assign}
+                WHERE FIND_IN_SET(' . $currentinstanceid . ', assign_ids)';
+        $results = $DB->get_records_sql($sql);
+        foreach ($results as $result) {
+            $assigns = explode(',', $result->assign_ids) ?? [];
+            foreach ($assigns as $assignid) {
+                if ($currentinstanceid === $assignid) {
+                    continue;
+                }
+                if (\block_dshop\assign\assign::has_activity_completion($assignid, $USER->id) == false) {
+                    continue;
+                }
+
+                $mform->addElement('static', 'error', '',
+                    html_writer::div('Waarschuwing! Je hebt deze opdracht reeds ingediend. Door deze opnieuw in te dienen wordt je eerder ingediende opdracht, inclusief beoordeling, gewist op alle plaatsen.', 'alert alert-danger'));
+                break;
+            }
+        }
+        // TWEAK END LDESIGN.
         $instance = $assign->get_instance();
         if ($instance->teamsubmission) {
             $submission = $assign->get_group_submission($data->userid, 0, true);

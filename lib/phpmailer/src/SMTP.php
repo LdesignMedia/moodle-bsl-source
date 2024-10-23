@@ -402,6 +402,9 @@ class SMTP
 
         $errno = 0;
         $errstr = '';
+        // TWEAK START LDESIGN.
+        $options['ssl'] = ['verify_peer' => false, 'verify_peer_name' => false];
+        // TWEAK END LDESIGN.
         if ($streamok) {
             $socket_context = stream_context_create($options);
             set_error_handler([$this, 'errorHandler']);

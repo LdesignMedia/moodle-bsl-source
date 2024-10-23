@@ -248,6 +248,9 @@ class mod_assign_mod_form extends moodleform_mod {
         $this->apply_admin_defaults();
 
         $this->add_action_buttons();
+        // TWEAK START LDESIGN.
+        $this->set_dentallect_defaults();
+        // TWEAK END LDESIGN.
     }
 
     /**
@@ -406,4 +409,16 @@ class mod_assign_mod_form extends moodleform_mod {
             }
         }
     }
+    // TWEAK START LDESIGN.
+    public function set_dentallect_defaults() {
+        $mform =& $this->_form;
+        $mform->setDefault('requiresubmissionstatement', '1');
+        $mform->setDefault('attemptreopenmethod', 'untilpass');
+        $mform->setDefault('grade[modgrade_type]', 'scale');
+        $mform->setDefault('grade[modgrade_scale]', '4');
+        $mform->setDefault('gradepass', '2');
+        $mform->setDefault('completion', '2');
+        $mform->setDefault('completionusegrade', '1');
+    }
+    // TWEAK END LDESIGN.
 }

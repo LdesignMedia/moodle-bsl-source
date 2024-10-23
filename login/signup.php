@@ -25,6 +25,9 @@
  */
 
 require('../config.php');
+// TWEAK START LDESIGN.
+redirect(new moodle_url('/blocks/dshop/register'));
+// TWEAK END LDESIGN.
 require_once($CFG->dirroot . '/user/editlib.php');
 require_once($CFG->libdir . '/authlib.php');
 require_once('lib.php');

@@ -231,16 +231,18 @@ class feedback_item_label extends feedback_item_base {
         return false;
     }
 
+    // TWEAK START LDESIGN.
     public function excelprint_item(&$worksheet,
                              $row_offset,
                              $xls_formats,
                              $item,
                              $groupid,
-                             $courseid = false) {
+                             $courseid = false, object $formdata) {
     }
 
-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
+    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
     }
+    // TWEAK END LDESIGN.
     public function get_printval($item, $value) {
     }
 
