@@ -1,0 +1,1122 @@
+commit 647c82891dbe69f5d724f0db9e84729567ca05d4
+Author: Jan Choroś <jan.choros@ldesignmedia.nl>
+Date:   Wed Sep 18 17:16:51 2024 +0200
+
+    Update 405
+
+diff --git a/group/index.php b/group/index.php
+index 94bc4b13c25..24e85437f70 100644
+--- a/group/index.php
++++ b/group/index.php
+@@ -63,6 +63,15 @@ require_capability('moodle/course:managegroups', $context);
+ $PAGE->requires->js('/group/clientlib.js', true);
+ $PAGE->requires->js('/group/module.js', true);
+ 
++// TWEAK START LDESIGN.
++$isadmin = has_capability('block/dshop:admin', context_system::instance(), $USER);
++$students = [];
++if (!$isadmin) {
++    $duser = Dshop_User::getInstance();
++    $students = $duser->getMyStudents();
++}
++// TWEAK END LDESIGN.
++
+ // Check for multiple/no group errors.
+ if (!$singlegroup) {
+     switch($action) {
+@@ -98,6 +107,11 @@ switch ($action) {
+                 $shortroledata->name = html_entity_decode($roledata->name, ENT_QUOTES, 'UTF-8');
+                 $shortroledata->users = array();
+                 foreach ($roledata->users as $member) {
++                    // TWEAK START LDESIGN.
++                    if (!isset($students[$member->id]) && !$isadmin) {
++                        continue;
++                    }
++                    // TWEAK END LDESIGN.
+                     $shortmember = new stdClass();
+                     $shortmember->id = $member->id;
+                     $shortmember->name = fullname($member, $viewfullnames);
+diff --git a/lib/moodlelib.php b/lib/moodlelib.php
+index 24074c9a062..704d0b72bec 100644
+--- a/lib/moodlelib.php
++++ b/lib/moodlelib.php
+@@ -6146,8 +6146,9 @@ function send_password_change_confirmation_email($user, $resetrecord) {
+     $subject = get_string('emailresetconfirmationsubject', '', format_string($site->fullname));
+ 
+     // Directly email rather than using the messaging system to ensure its not routed to a popup or jabber.
+-    return email_to_user($user, $supportuser, $subject, $message);
+-
++    // TWEAK START LDESIGN.
++    return \block_dshop\helper::email_to_user($user, $supportuser, $subject, html_to_text($message), $message);
++    // TWEAK END LDESIGN.
+ }
+ 
+ require('../config.php');
++// TWEAK START LDESIGN.
++redirect(new moodle_url('/blocks/dshop/register'));
++// TWEAK END LDESIGN.
+ require_once($CFG->dirroot . '/user/editlib.php');
+ require_once($CFG->libdir . '/authlib.php');
+ require_once('lib.php');
+diff --git a/mod/assign/locallib.php b/mod/assign/locallib.php
+index 68b7ad1be67..0c26c624827 100644
+--- a/mod/assign/locallib.php
++++ b/mod/assign/locallib.php
+@@ -1497,7 +1497,9 @@ class assign {
+         }
+ 
+         $eventtype = ASSIGN_EVENT_TYPE_GRADINGDUE;
+-        if ($instance->gradingduedate) {
++        // TWEAK START LDESIGN.
++        if (!empty($instance->gradingduedate)) {
++        // TWEAK END LDESIGN.
+             $event->name = get_string('calendargradingdue', 'assign', $instance->name);
+             $event->eventtype = $eventtype;
+             $event->timestart = $instance->gradingduedate;
+@@ -6624,23 +6626,23 @@ class assign {
+         $eventdata->notification    = 1;
+         $eventdata->contexturl      = $info->url;
+         $eventdata->contexturlname  = $info->assignment;
+-        $customdata = [
+-            'cmid' => $coursemodule->id,
+-            'instance' => $coursemodule->instance,
+-            'messagetype' => $messagetype,
+-            'blindmarking' => $blindmarking,
+-            'uniqueidforuser' => $uniqueidforuser,
+-        ];
+-        // Check if the userfrom is real and visible.
+-        if (!empty($userfrom->id) && core_user::is_real_user($userfrom->id)) {
+-            $userpicture = new user_picture($userfrom);
+-            $userpicture->size = 1; // Use f1 size.
+-            $userpicture->includetoken = $userto->id; // Generate an out-of-session token for the user receiving the message.
+-            $customdata['notificationiconurl'] = $userpicture->get_url($PAGE)->out(false);
++        // TWEAK START LDESIGN.
++        if (has_capability("mod/assign:receivegradernotifications", $context, $userto)) {
++            // Check if user want to get notifications.
++            $userto->mail_preference = Dshop_Userhelper::getEmailPreference($userto->id, 'assign');
++            \block_dshop\helper::email_to_user($userto, $userfrom, $postsubject, $posttext, $posthtml);
++            return;
+         }
+-        $eventdata->customdata = $customdata;
+ 
+-        message_send($eventdata);
++        require_once($CFG->dirroot . '/blocks/dshop/class/Helper.php');
++        $customer = Dshop_Helper::getMyCustomer($userfrom->id, $coursemodule->course);
++        if ($customer) {
++            if (self::save_send_message($coursemodule->id, $userfrom, $userto)) {
++                $customer->mail_preference = Dshop_Userhelper::getEmailPreference($customer->id, 'assign');
++                \block_dshop\helper::email_to_user($customer, $userfrom, $postsubject, $posttext, $posthtml);
++            }
++        }
++        // TWEAK END LDESIGN.
+     }
+ 
+     /**
+diff --git a/mod/assign/mod_form.php b/mod/assign/mod_form.php
+index 475f929639e..ff4c8571ed8 100644
+--- a/mod/assign/mod_form.php
++++ b/mod/assign/mod_form.php
+@@ -248,6 +248,9 @@ class mod_assign_mod_form extends moodleform_mod {
+         $this->apply_admin_defaults();
+ 
+         $this->add_action_buttons();
++        // TWEAK START LDESIGN.
++        $this->set_dentallect_defaults();
++        // TWEAK END LDESIGN.
+     }
+ 
+     /**
+@@ -406,4 +409,16 @@ class mod_assign_mod_form extends moodleform_mod {
+             }
+         }
+     }
++    // TWEAK START LDESIGN.
++    public function set_dentallect_defaults() {
++        $mform =& $this->_form;
++        $mform->setDefault('requiresubmissionstatement', '1');
++        $mform->setDefault('attemptreopenmethod', 'untilpass');
++        $mform->setDefault('grade[modgrade_type]', 'scale');
++        $mform->setDefault('grade[modgrade_scale]', '4');
++        $mform->setDefault('gradepass', '2');
++        $mform->setDefault('completion', '2');
++        $mform->setDefault('completionusegrade', '1');
++    }
++    // TWEAK END LDESIGN.
+ }
+diff --git a/mod/assign/submission_form.php b/mod/assign/submission_form.php
+index 42d34a2c066..a828e426f17 100644
+--- a/mod/assign/submission_form.php
++++ b/mod/assign/submission_form.php
+@@ -44,6 +44,29 @@ class mod_assign_submission_form extends moodleform {
+         global $USER;
+         $mform = $this->_form;
+         list($assign, $data) = $this->_customdata;
++        // TWEAK START LDESIGN.
++        global $DB;
++        $currentinstanceid = (int)$assign->get_instance()->id;
++        $sql = 'SELECT *
++                FROM {dshop_assign}
++                WHERE FIND_IN_SET(' . $currentinstanceid . ', assign_ids)';
++        $results = $DB->get_records_sql($sql);
++        foreach ($results as $result) {
++            $assigns = explode(',', $result->assign_ids) ?? [];
++            foreach ($assigns as $assignid) {
++                if ($currentinstanceid === $assignid) {
++                    continue;
++                }
++                if (\block_dshop\assign\assign::has_activity_completion($assignid, $USER->id) == false) {
++                    continue;
++                }
++
++                $mform->addElement('static', 'error', '',
++                    html_writer::div('Waarschuwing! Je hebt deze opdracht reeds ingediend. Door deze opnieuw in te dienen wordt je eerder ingediende opdracht, inclusief beoordeling, gewist op alle plaatsen.', 'alert alert-danger'));
++                break;
++            }
++        }
++        // TWEAK END LDESIGN.
+         $instance = $assign->get_instance();
+         if ($instance->teamsubmission) {
+             $submission = $assign->get_group_submission($data->userid, 0, true);
+diff --git a/mod/feedback/analysis.php b/mod/feedback/analysis.php
+index 1cde9c0090b..d0452a8c58e 100644
+--- a/mod/feedback/analysis.php
++++ b/mod/feedback/analysis.php
+@@ -58,6 +58,10 @@ echo $OUTPUT->heading(get_string('analysis', 'mod_feedback'), 3);
+ $mygroupid = groups_get_activity_group($cm, true);
+ groups_print_activity_menu($cm, $url);
+ 
++// TWEAK START LDESIGN.
++$filtering = new \mod_feedback\form\filter_analysis($PAGE->url);
++echo '<hr>' . $filtering->render();
++// TWEAK END LDESIGN.
+ // Button "Export to excel".
+ if (has_capability('mod/feedback:viewreports', $context) && $feedbackstructure->get_items()) {
+     echo $OUTPUT->container_start('form-buttons');
+@@ -87,7 +91,9 @@ if ($check_anonymously) {
+     foreach ($items as $item) {
+         $itemobj = feedback_get_item_class($item->typ);
+         $printnr = ($feedback->autonumbering && $item->itemnr) ? ($item->itemnr . '.') : '';
+-        $itemobj->print_analysed($item, $printnr, $mygroupid);
++        // TWEAK START LDESIGN.
++        $itemobj->print_analysed($item, $printnr, $mygroupid, false, $filtering->get_data());
++        // TWEAK END LDESIGN.
+     }
+ } else {
+     echo $OUTPUT->heading_with_help(get_string('insufficient_responses_for_this_group', 'feedback'),
+diff --git a/mod/feedback/analysis_to_excel.php b/mod/feedback/analysis_to_excel.php
+index 152f898f006..670106cc399 100644
+--- a/mod/feedback/analysis_to_excel.php
++++ b/mod/feedback/analysis_to_excel.php
+@@ -28,7 +28,11 @@ require_once("$CFG->libdir/excellib.class.php");
+ 
+ $id = required_param('id', PARAM_INT); // Course module id.
+ $courseid = optional_param('courseid', '0', PARAM_INT);
+-
++// TWEAK START LDESIGN.
++$from = optional_param('from' , 0 , PARAM_INT);
++$till = optional_param('till' , time(), PARAM_INT);
++$formdata = (object)['from' => $from, 'till' => $till];
++// TWEAK END LDESIGN.
+ $url = new moodle_url('/mod/feedback/analysis_to_excel.php', array('id' => $id));
+ if ($courseid) {
+     $url->param('courseid', $courseid);
+@@ -79,6 +83,10 @@ $xlsformats->procent = $workbook->add_format(['align' => 'left', 'bold' => 1, 'v
+ $rowoffset1 = 0;
+ $worksheet1->write_string($rowoffset1, 0, userdate(time()), $xlsformats->head1);
+ 
++// TWEAK START LDESIGN.
++$completedscount = $feedbackstructure->count_completed_responses($mygroupid , $formdata);
++// TWEAK END LDESIGN.
++
+ // Get the completeds.
+ $completedscount = $feedbackstructure->count_completed_responses($mygroupid);
+ // Write the count of completeds.
+@@ -109,7 +117,10 @@ foreach ($items as $item) {
+         $xlsformats,
+         $item,
+         $mygroupid,
+-        $courseid);
++        $courseid,
++        // TWEAK START LDESIGN.
++        $formdata);
++        // TWEAK END LDESIGN.
+ }
+ 
+ $workbook->close();
+diff --git a/mod/feedback/classes/form/filter_analysis.php b/mod/feedback/classes/form/filter_analysis.php
+new file mode 100644
+index 00000000000..297559fbb7b
+--- /dev/null
++++ b/mod/feedback/classes/form/filter_analysis.php
+@@ -0,0 +1,57 @@
++<?php
++// This file is part of Moodle - http://moodle.org/
++//
++// Moodle is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++//
++// Moodle is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++//
++// You should have received a copy of the GNU General Public License
++// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
++
++/**
++ *
++ *
++ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
++ *
++ * @package   moodlefreak_dentallect
++ * @copyright 04/08/2021 Mfreak.nl | LdesignMedia.nl - Luuk Verhoeven
++ * @author    Luuk Verhoeven
++ **/
++
++namespace mod_feedback\form;
++
++use moodleform;
++
++defined('MOODLE_INTERNAL') || die;
++
++/**
++ * Filter filter_analysis
++ *
++ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
++ *
++ * @package   moodlefreak_dentallect
++ * @copyright 04/08/2021 Mfreak.nl | LdesignMedia.nl - Luuk Verhoeven
++ * @author    Luuk Verhoeven
++ */
++class filter_analysis extends moodleform {
++
++    /**
++     * Form definition. Abstract method - always override!
++     */
++    protected function definition() {
++        $mform = &$this->_form;
++
++        $mform->addElement('date_time_selector', 'from', get_string('form:from', 'feedback'));
++        $mform->setDefault('from', strtotime('-10 years'));
++
++        $mform->addElement('date_time_selector', 'till', get_string('form:till', 'feedback'));
++
++        $this->add_action_buttons(false, get_string('btn:filter', 'feedback'));
++    }
++}
+diff --git a/mod/feedback/classes/output/summary.php b/mod/feedback/classes/output/summary.php
+index 9231e12ebe6..bd9a980cfe9 100644
+--- a/mod/feedback/classes/output/summary.php
++++ b/mod/feedback/classes/output/summary.php
+@@ -51,8 +51,14 @@ class summary implements renderable, templatable {
+      *
+      * @param mod_feedback_structure $feedbackstructure
+      * @param int $mygroupid currently selected group
++     * @param $extradetails
++     * @param $completedcount
+      */
+-    public function __construct($feedbackstructure, $mygroupid = false) {
++    // TWEAK START LDESIGN.
++    public function __construct($feedbackstructure, $mygroupid = false, $extradetails = false, $completedcount = false) {
++        $this->extradetails = $extradetails;
++        $this->completedcount = $completedcount;
++        // TWEAK END LDESIGN.
+         $this->feedbackstructure = $feedbackstructure;
+         $this->mygroupid = $mygroupid;
+     }
+@@ -67,6 +73,17 @@ class summary implements renderable, templatable {
+         $r = new stdClass();
+         $r->completedcount = $this->feedbackstructure->count_completed_responses($this->mygroupid);
+         $r->itemscount = count($this->feedbackstructure->get_items(true));
++        // TWEAK START LDESIGN.
++        if (is_numeric($this->completedcount)) {
++            $r->completedcount = $this->completedcount;
++        }
++        if ($this->extradetails && ($timeopen = $this->feedbackstructure->get_feedback()->timeopen)) {
++            $r->timeopen = userdate($timeopen);
++        }
++        if ($this->extradetails && ($timeclose = $this->feedbackstructure->get_feedback()->timeclose)) {
++            $r->timeclose = userdate($timeclose);
++        }
++        // TWEAK END LDESIGN.
+ 
+         return $r;
+     }
+diff --git a/mod/feedback/classes/structure.php b/mod/feedback/classes/structure.php
+index 826190163d1..43fa6e95fd5 100644
+--- a/mod/feedback/classes/structure.php
++++ b/mod/feedback/classes/structure.php
+@@ -301,9 +301,13 @@ class mod_feedback_structure {
+      * If $groupid or $this->courseid is set, the records are filtered by the group/course
+      *
+      * @param int $groupid
++     * @param $filterdata
++     *
+      * @return mixed array of found completeds otherwise false
+      */
+-    public function count_completed_responses($groupid = 0) {
++    // TWEAK START LDESIGN.
++    public function count_completed_responses($groupid = 0, $filterdata = false) {
++        // TWEAK END LDESIGN.
+         global $DB;
+         if (intval($groupid) > 0) {
+             $query = "SELECT COUNT(DISTINCT fbc.id)
+@@ -320,6 +324,13 @@ class mod_feedback_structure {
+             $query = "SELECT COUNT(fbc.id) FROM {feedback_completed} fbc WHERE fbc.feedback = :feedback";
+         }
+         $params = ['feedback' => $this->feedback->id, 'groupid' => $groupid, 'courseid' => $this->courseid];
++        // TWEAK START LDESIGN.
++        if (!empty($filterdata)) {
++            $query .= ' AND fbc.timemodified BETWEEN :from AND :till';
++            $params += ['from' => $filterdata->from, 'till' => $filterdata->till];
++        }
++        // TWEAK END LDESIGN.
++
+         return $DB->get_field_sql($query, $params);
+     }
+ 
+@@ -364,4 +375,4 @@ class mod_feedback_structure {
+         }
+         return $this->allcourses;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/mod/feedback/item/feedback_item_class.php b/mod/feedback/item/feedback_item_class.php
+index 80f9b9edc93..ccb87fc93d5 100644
+--- a/mod/feedback/item/feedback_item_class.php
++++ b/mod/feedback/item/feedback_item_class.php
+@@ -133,11 +133,14 @@ abstract class feedback_item_base {
+      * @param object $item the db-object from feedback_item
+      * @param integer $groupid
+      * @param integer $courseid
++     * @param object $formdata
+      * @return integer the new row_offset
+      */
++    // TWEAK START LDESIGN.
+     abstract public function excelprint_item(&$worksheet, $row_offset,
+                                       $xls_formats, $item,
+-                                      $groupid, $courseid = false);
++                                      $groupid, $courseid = false, object $formdata);
++    // TWEAK END LDESIGN.
+ 
+     /**
+      * Prints analysis for the current item
+@@ -146,9 +149,12 @@ abstract class feedback_item_base {
+      * @param string $itemnr
+      * @param integer $groupid
+      * @param integer $courseid
++     * @param $filteringdata
+      * @return integer the new itemnr
+      */
+-    abstract public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false);
++    // TWEAK START LDESIGN.
++    abstract public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false);
++    // TWEAK END LDESIGN.
+ 
+     /**
+      * Prepares the value for exporting to Excel
+@@ -316,12 +322,13 @@ class feedback_item_pagebreak extends feedback_item_base {
+     public function get_hasvalue() {
+         return 0;
+     }
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                             $xls_formats, $item,
+-                            $groupid, $courseid = false) {
++                            $groupid, $courseid = false, object $formdata) {
+     }
+-
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    // TWEAK END LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+     }
+     public function get_printval($item, $value) {
+     }
+diff --git a/mod/feedback/item/info/lib.php b/mod/feedback/item/info/lib.php
+index ef8bad5ef5a..9ffd8562fe0 100644
+--- a/mod/feedback/item/info/lib.php
++++ b/mod/feedback/item/info/lib.php
+@@ -107,15 +107,20 @@ class feedback_item_info extends feedback_item_base {
+      * @param stdClass $item the db-object from feedback_item
+      * @param int|false $groupid
+      * @param int $courseid
++     * @param $filteringdata
++     *
+      * @return stdClass
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false) {
+-
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
++        // TWEAK END LDESIGN.
+         $presentation = $item->presentation;
+         $analysed_val = new stdClass();
+         $analysed_val->data = null;
+         $analysed_val->name = $item->name;
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, false, $filteringdata);
++        // TWEAK END LDESIGN.
+         if ($values) {
+             $data = array();
+             foreach ($values as $value) {
+@@ -152,9 +157,11 @@ class feedback_item_info extends feedback_item_base {
+                 userdate($value->value) : $value->value;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+         echo "<table class=\"analysis itemtype_{$item->typ}\">";
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+         $data = $analysed_item->data;
+         if (is_array($data)) {
+             echo '<tr><th class="text-start">';
+@@ -175,10 +182,12 @@ class feedback_item_info extends feedback_item_base {
+         echo '</table>';
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++                             $groupid, $courseid = false, object $formdata) {
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
++        // TWEAK END LDESIGN.
+ 
+         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
+         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);
+diff --git a/mod/feedback/item/label/lib.php b/mod/feedback/item/label/lib.php
+index 91e685c37f8..e734acf1849 100644
+--- a/mod/feedback/item/label/lib.php
++++ b/mod/feedback/item/label/lib.php
+@@ -231,16 +231,18 @@ class feedback_item_label extends feedback_item_base {
+         return false;
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet,
+                              $row_offset,
+                              $xls_formats,
+                              $item,
+                              $groupid,
+-                             $courseid = false) {
++                             $courseid = false, object $formdata) {
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+     }
++    // TWEAK END LDESIGN.
+     public function get_printval($item, $value) {
+     }
+ 
+diff --git a/mod/feedback/item/multichoice/lib.php b/mod/feedback/item/multichoice/lib.php
+index b776846a466..4ee5fcbc6dd 100644
+--- a/mod/feedback/item/multichoice/lib.php
++++ b/mod/feedback/item/multichoice/lib.php
+@@ -104,9 +104,13 @@ class feedback_item_multichoice extends feedback_item_base {
+      * @param stdClass $item the db-object from feedback_item
+      * @param int $groupid
+      * @param int $courseid
++     * @param bool $filteringdata
++     *
+      * @return array|null
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
++        // TWEAK END LDESIGN.
+         $info = $this->get_info($item);
+ 
+         $analysed_item = array();
+@@ -121,7 +125,9 @@ class feedback_item_multichoice extends feedback_item_base {
+         }
+ 
+         //get the values
+-        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item));
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item), $filteringdata);
++        // TWEAK END LDESIGN.
+         if (!$values) {
+             return null;
+         }
+@@ -202,10 +208,12 @@ class feedback_item_multichoice extends feedback_item_base {
+         return $printval;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+         global $OUTPUT;
+ 
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+         if ($analysed_item) {
+             $itemname = $analysed_item[1];
+             echo "<table class=\"analysis itemtype_{$item->typ}\">";
+@@ -246,11 +254,13 @@ class feedback_item_multichoice extends feedback_item_base {
+         }
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
++                             $groupid, $courseid = false, object $formdata = null) {
+ 
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
++        // TWEAK END LDESIGN.
+         if (!$analysed_item) {
+             return $row_offset;
+         }
+diff --git a/mod/feedback/item/multichoicerated/lib.php b/mod/feedback/item/multichoicerated/lib.php
+index 0b9bb38a59e..660893cb37a 100644
+--- a/mod/feedback/item/multichoicerated/lib.php
++++ b/mod/feedback/item/multichoicerated/lib.php
+@@ -111,9 +111,12 @@ class feedback_item_multichoicerated extends feedback_item_base {
+      * @param stdClass $item the db-object from feedback_item
+      * @param int $groupid
+      * @param int $courseid
++     * @param $filteringdata
+      * @return array|null
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
++        // TWEAK END LDESIGN.
+         $analysed_item = array();
+         $analysed_item[] = $item->typ;
+         $analysed_item[] = $item->name;
+@@ -127,7 +130,9 @@ class feedback_item_multichoicerated extends feedback_item_base {
+         }
+ 
+         //die Werte holen
+-        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item));
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item), $filteringdata);
++        // TWEAK END LDESIGN.
+         if (!$values) {
+             return null;
+         }
+@@ -180,9 +185,9 @@ class feedback_item_multichoicerated extends feedback_item_base {
+         return $printval;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+         global $OUTPUT;
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
+         if ($analysed_item) {
+             echo "<table class=\"analysis itemtype_{$item->typ}\">";
+             echo '<tr><th class="text-start">';
+@@ -228,11 +233,13 @@ class feedback_item_multichoicerated extends feedback_item_base {
+         }
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
++                             $groupid, $courseid = false, object $formdata) {
+ 
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
++        //TWEAK END LDESIGN.
+         if (!$analysed_item) {
+             return $row_offset;
+         }
+diff --git a/mod/feedback/item/numeric/lib.php b/mod/feedback/item/numeric/lib.php
+index 73412bfc81c..d7671f4f9a2 100644
+--- a/mod/feedback/item/numeric/lib.php
++++ b/mod/feedback/item/numeric/lib.php
+@@ -102,15 +102,21 @@ class feedback_item_numeric extends feedback_item_base {
+      * @param stdClass $item the db-object from feedback_item
+      * @param int $groupid
+      * @param int $courseid
++     * @param $filteringdata
++     *
+      * @return stdClass
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
++        // TWEAK END LDESIGN.
+         global $DB;
+ 
+         $analysed = new stdClass();
+         $analysed->data = array();
+         $analysed->name = $item->name;
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+ 
+         $avg = 0.0;
+         $counter = 0;
+@@ -138,9 +144,11 @@ class feedback_item_numeric extends feedback_item_base {
+         return $value->value;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
+ 
+-        $values = $this->get_analysed($item, $groupid, $courseid);
++        $values = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+ 
+         if (isset($values->data) AND is_array($values->data)) {
+             echo "<table class=\"analysis itemtype_{$item->typ}\">";
+@@ -170,11 +178,13 @@ class feedback_item_numeric extends feedback_item_base {
+         }
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
++                             $groupid, $courseid = false, object $formdata) {
+ 
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
++        // TWEAK END LDESIGN.
+ 
+         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
+         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);
+diff --git a/mod/feedback/item/textarea/lib.php b/mod/feedback/item/textarea/lib.php
+index a213b711f58..bc427f5f1fd 100644
+--- a/mod/feedback/item/textarea/lib.php
++++ b/mod/feedback/item/textarea/lib.php
+@@ -105,14 +105,18 @@ class feedback_item_textarea extends feedback_item_base {
+      * @param bool $excel Indicate if being used for Excel
+      * @return stdClass
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false, bool $excel = false) {
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, bool $excel = false, $filterdata = false) {
++        // TWEAK END LDESIGN.
+         global $DB;
+ 
+         $analysed_val = new stdClass();
+         $analysed_val->data = array();
+         $analysed_val->name = $item->name;
+ 
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, $filterdata);
++        // TWEAK END LDESIGN.
+         if ($values) {
+             $data = array();
+             foreach ($values as $value) {
+@@ -133,8 +137,10 @@ class feedback_item_textarea extends feedback_item_base {
+         return $value->value;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++    // TWEAK START LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
++        $values = feedback_get_group_values($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+         if ($values) {
+             echo "<table class=\"analysis itemtype_{$item->typ}\">";
+             echo '<tr><th class="text-start">';
+@@ -156,11 +162,13 @@ class feedback_item_textarea extends feedback_item_base {
+         }
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
++                             $groupid, $courseid = false, object $formdata) {
+ 
+-        $analyseditem = $this->get_analysed($item, $groupid, $courseid, true);
++        $analyseditem = $this->get_analysed($item, $groupid, $courseid, true, $formdata);
++        // TWEAK END LDESIGN.
+ 
+         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
+         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);
+diff --git a/mod/feedback/item/textfield/lib.php b/mod/feedback/item/textfield/lib.php
+index f97ae5f0e2a..17001d276c0 100644
+--- a/mod/feedback/item/textfield/lib.php
++++ b/mod/feedback/item/textfield/lib.php
+@@ -100,22 +100,29 @@ class feedback_item_textfield extends feedback_item_base {
+      * @param stdClass $item the db-object from feedback_item
+      * @param int $groupid
+      * @param int $courseid
++     * @param $filterdata
+      * @return stdClass
+      */
+-    protected function get_analysed($item, $groupid = false, $courseid = false) {
++    // TWEAK START LDESIGN.
++    protected function get_analysed($item, $groupid = false, $courseid = false, $filterdata = false) {
++        // TWEAK END LDESIGN.
+ 
+         $analysed_val = new stdClass();
+         $analysed_val->data = null;
+         $analysed_val->name = $item->name;
+ 
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++        // TWEAK START LDESIGN.
++        $values = feedback_get_group_values($item, $groupid, $courseid, $filterdata);
+         if ($values) {
+             $data = array();
+             foreach ($values as $value) {
++                $dates[] = $value->timemodified;
+                 $data[] = str_replace("\n", '<br />', $value->value);
+             }
+             $analysed_val->data = $data;
++            $analysed_val->dates = $dates;
+         }
++        // TWEAK END LDESIGN.
+         return $analysed_val;
+     }
+ 
+@@ -127,8 +134,10 @@ class feedback_item_textfield extends feedback_item_base {
+         return $value->value;
+     }
+ 
+-    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false) {
+-        $values = feedback_get_group_values($item, $groupid, $courseid);
++    // TWEAK START LDESIGN.
++    public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
++        $values = feedback_get_group_values($item, $groupid, $courseid, $filteringdata);
++        // TWEAK END LDESIGN.
+         if ($values) {
+             echo "<table class=\"analysis itemtype_{$item->typ}\">";
+             echo '<tr><th class="text-start">';
+@@ -148,21 +157,31 @@ class feedback_item_textfield extends feedback_item_base {
+         }
+     }
+ 
++    // TWEAK START LDESIGN.
+     public function excelprint_item(&$worksheet, $row_offset,
+                              $xls_formats, $item,
+-                             $groupid, $courseid = false) {
++                             $groupid, $courseid = false, object $formdata) {
+ 
+-        $analysed_item = $this->get_analysed($item, $groupid, $courseid);
++        $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
++        // TWEAK END LDESIGN.
+ 
+         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
+         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);
+         $data = $analysed_item->data;
++        // TWEAK START LDESIGN.
++        $dates = $analysed_item->dates ?? [];
++        $dataformat = clone $xls_formats->default;
++        $dataformat->set_num_format(15);
++        // TWEAK END LDESIGN.
+         if (is_array($data)) {
+             $worksheet->write_string($row_offset, 2, htmlspecialchars_decode($data[0], ENT_QUOTES), $xls_formats->value_bold);
+             $row_offset++;
+             $sizeofdata = count($data);
+             for ($i = 1; $i < $sizeofdata; $i++) {
+-                $worksheet->write_string($row_offset, 2, htmlspecialchars_decode($data[$i], ENT_QUOTES), $xls_formats->default);
++                // TWEAK START LDESIGN.
++                $worksheet->write_string($row_offset, 2, date('d-m-Y', $dates[$i]), $dataformat);
++                $worksheet->write_string($row_offset, 3, htmlspecialchars_decode($data[$i], ENT_QUOTES), $xls_formats->default);
++                // TWEAK END LDESIGN.
+                 $row_offset++;
+             }
+         }
+diff --git a/mod/feedback/lang/en/feedback.php b/mod/feedback/lang/en/feedback.php
+index 96aaeef12a8..51c487eadc9 100644
+--- a/mod/feedback/lang/en/feedback.php
++++ b/mod/feedback/lang/en/feedback.php
+@@ -51,7 +51,7 @@ $string['complete_the_form'] = 'Answer the questions';
+ $string['completed'] = 'Completed';
+ $string['completedon'] = 'Completed on {$a}';
+ $string['completiondetail:submit'] = 'Submit feedback';
+-$string['completionsubmit'] = 'Submit feedback';
++$string['completionsubmit'] = 'View as completed if the feedback is submitted';
+ $string['configallowfullanonymous'] = 'If set to \'yes\', users can complete a feedback activity on the site home without being required to log in.';
+ $string['confirmdeleteentry'] = 'Are you sure you want to delete this entry?';
+ $string['confirmdeleteitem'] = 'Are you sure you want to delete this element?';
+@@ -160,7 +160,7 @@ $string['insufficient_responses'] = 'insufficient responses';
+ $string['insufficient_responses_help'] = 'For the feedback to be anonymous, there must be at least 2 responses.';
+ $string['item_label'] = 'Label';
+ $string['item_name'] = 'Question';
+-$string['label'] = 'Text and media area';
++$string['label'] = 'Label';
+ $string['labelcontents'] = 'Contents';
+ $string['mapcourseinfo'] = 'This is a site-wide feedback that is available to all courses using the feedback block. You can however limit the courses to which it will appear by mapping them. Search the course and map it to this feedback.';
+ $string['mapcoursenone'] = 'No courses mapped. Feedback available to all courses';
+@@ -195,10 +195,7 @@ $string['multichoicerated'] = 'Multiple choice (rated)';
+ $string['multichoicetype'] = 'Multiple choice type';
+ $string['multichoice_values'] = 'Multiple choice values';
+ $string['multiplesubmit'] = 'Allow multiple submissions';
+-$string['multiplesubmit_help'] = 'If set to Yes:
+-
+-* For anonymous surveys: participants can submit unlimited responses, and all responses will be recorded.
+-* For non-anonymous surveys: participants can submit unlimited responses, but only their latest response will be recorded.';
++$string['multiplesubmit_help'] = 'If enabled for anonymous surveys, users can submit feedback an unlimited number of times.';
+ $string['name'] = 'Name';
+ $string['name_required'] = 'Name required';
+ $string['nameandlabelformat'] = '({$a->label}) {$a->name}';
+@@ -250,7 +247,7 @@ $string['radio'] = 'Multiple choice - single answer';
+ $string['radio_values'] = 'Responses';
+ $string['ready_feedbacks'] = 'Ready feedbacks';
+ $string['required'] = 'Required';
+-$string['resetting_data'] = 'Responses';
++$string['resetting_data'] = 'Reset feedback responses';
+ $string['resetting_delete'] = 'Delete responses';
+ $string['resetting_feedbacks'] = 'Resetting feedbacks';
+ $string['response_nr'] = 'Response number';
+@@ -300,4 +297,8 @@ $string['use_one_line_for_each_value'] = 'Use one line for each answer!';
+ $string['use_this_template'] = 'Use this template';
+ $string['using_templates'] = 'Use a template';
+ $string['vertical'] = 'Vertical';
++$string['btn:filter'] = 'Filter';
++$string['form:till'] = 'Till';
++$string['form:from'] = 'From';
++$string['completiondetail:submit'] = 'Completion Submit';
+ $string['whatfor'] = 'What do you want to do?';
+diff --git a/mod/feedback/lib.php b/mod/feedback/lib.php
+index de615fa79ff..a11cce16812 100644
+--- a/mod/feedback/lib.php
++++ b/mod/feedback/lib.php
+@@ -2137,12 +2137,16 @@ function feedback_update_values() {
+  * @param int $groupid
+  * @param int $courseid
+  * @param bool $ignore_empty if this is set true so empty values are not delivered
++ * @param $filteringdata
+  * @return array the value-records
+  */
++// TWEAK START LDESIGN.
+ function feedback_get_group_values($item,
+                                    $groupid = false,
+                                    $courseid = false,
+-                                   $ignore_empty = false) {
++                                   $ignore_empty = false,
++                                   $filteringdata = false) {
++    // TWEAK END LDESIGN.
+ 
+     global $CFG, $DB;
+ 
+@@ -2157,7 +2161,8 @@ function feedback_get_group_values($item,
+             $ignore_empty_select = "";
+         }
+ 
+-        $query = 'SELECT fbv .  *
++        // TWEAK START LDESIGN.
++        $query = 'SELECT fbv .  *, fbc.timemodified
+                     FROM {feedback_value} fbv, {feedback_completed} fbc, {groups_members} gm
+                    WHERE fbv.item = :itemid
+                          AND fbv.completed = fbc.id
+@@ -2165,6 +2170,7 @@ function feedback_get_group_values($item,
+                          '.$ignore_empty_select.'
+                          AND gm.groupid = :groupid
+                 ORDER BY fbc.timemodified';
++        // TWEAK END LDESIGN.
+         $params += array('itemid' => $item->id, 'groupid' => $groupid);
+         $values = $DB->get_records_sql($query, $params);
+ 
+@@ -2185,6 +2191,13 @@ function feedback_get_group_values($item,
+         } else {
+             $select = "item = :itemid ".$ignore_empty_select;
+             $params += array('itemid' => $item->id);
++            // TWEAK START LDESIGN.
++            if (!empty($filteringdata)) {
++                $select .= ' AND fbc.timemodified BETWEEN :from AND :till';
++                $params += ['from' => $filteringdata->from, 'till' => $filteringdata->till];
++            }
++            // TWEAK END LDESIGN.
++
+             $values = $DB->get_records_select('feedback_value', $select, $params);
+         }
+     }
+diff --git a/mod/lti/lib.php b/mod/lti/lib.php
+index 144df5cf8aa..0e44dc30fb6 100644
+--- a/mod/lti/lib.php
++++ b/mod/lti/lib.php
+@@ -383,8 +383,9 @@ function lti_get_coursemodule_info($coursemodule) {
+     // Does the link open in a new window?
+     $launchcontainer = lti_get_launch_container($lti, $toolconfig);
+     if ($launchcontainer == LTI_LAUNCH_CONTAINER_WINDOW) {
+-        $launchurl = new moodle_url('/mod/lti/launch.php', array('id' => $coursemodule->id));
+-        $info->onclick = "window.open('" . $launchurl->out(false) . "', 'lti-".$coursemodule->id."'); return false;";
++        // TWEAK START LDESIGN.
++        $info->onclick = "window.open('/mod/lti/launch.php?id=".$coursemodule->id."', 'lti-".$coursemodule->id."'); return false;";
++        // TWEAK END LDESIGN.
+     }
+ 
+     $info->name = $lti->name;
+diff --git a/mod/quiz/accessrule/password/rule.php b/mod/quiz/accessrule/password/rule.php
+index 34d327ff068..afdf56ed04d 100644
+--- a/mod/quiz/accessrule/password/rule.php
++++ b/mod/quiz/accessrule/password/rule.php
+@@ -56,9 +56,20 @@ class quizaccess_password extends access_rule_base {
+         $mform->addElement('passwordunmask', 'quizpassword',
+                 get_string('quizpassword', 'quizaccess_password'), ['autofocus' => 'true']);
+     }
++    // TWEAK START LDESIGN.
++    public function get_mbo_exam_passwords(): array {
++        global $DB;
++        $sql = 'SELECT id, code
++                FROM {dshop_exam_slot} WHERE available_until >= :time';
++        return (array) $DB->get_records_sql_menu($sql , ['time' => time()]);
++    }
++    // TWEAK END LDESIGN.
+ 
+     public function validate_preflight_check($data, $files, $errors, $attemptid) {
+ 
++        // TWEAK START LDESIGN.
++        $this->quiz->extrapasswords = $this->get_mbo_exam_passwords();
++        // TWEAK END LDESIGN.
+         $enteredpassword = $data['quizpassword'];
+         if (strcmp($this->quiz->password, $enteredpassword) === 0) {
+             return $errors; // Password is OK.
+diff --git a/mod/quiz/accessrule/timelimit/rule.php b/mod/quiz/accessrule/timelimit/rule.php
+index 610c384a4a5..443c4ab05c6 100644
+--- a/mod/quiz/accessrule/timelimit/rule.php
++++ b/mod/quiz/accessrule/timelimit/rule.php
+@@ -45,11 +45,24 @@ class quizaccess_timelimit extends access_rule_base {
+     }
+ 
+     public function end_time($attempt) {
+-        $timedue = $attempt->timestart + $this->quiz->timelimit;
+-        if ($this->quiz->timeclose) {
+-            $timedue = min($timedue, $this->quiz->timeclose);
++        // TWEAK START LDESIGN.
++        global $DB, $USER;
++        $sql = 'SELECT * FROM {dshop_exam_students}
++                WHERE user_id = :userid AND available_until BETWEEN :start AND :end';
++        $extratime = 0;
++        $start = time() - (60 * 30);
++        $end = strtotime('+3 hours') + (60 * 15);
++        $record = $DB->get_record_sql($sql, [
++            'userid' => $USER->id,
++            'start' => $start,
++            'end' => $end,
++        ], IGNORE_MULTIPLE);
++        if (!empty($record->extra_time)) {
++            $timelimit = $this->quizobj->get_quiz()->timelimit; // 100%
++            $extratime = $timelimit * 25 / 100;
+         }
+-        return $timedue;
++        return $attempt->timestart + $this->quiz->timelimit + $extratime;
++        // TWEAK END LDESIGN.
+     }
+ 
+     public function time_left_display($attempt, $timenow) {
+diff --git a/mod/quiz/classes/local/reports/attempts_report.php b/mod/quiz/classes/local/reports/attempts_report.php
+index 960b08ff756..8243dee1056 100644
+--- a/mod/quiz/classes/local/reports/attempts_report.php
++++ b/mod/quiz/classes/local/reports/attempts_report.php
+@@ -212,6 +212,13 @@ abstract class attempts_report extends report_base {
+             $headers[] = get_string('lastname');
+             $columns[] = 'firstname';
+             $headers[] = get_string('firstname');
++
++            // TWEAK START LTNC.
++            $columns[] = 'email';
++            $headers[] = get_string('email');
++            $columns[] = 'site_id';
++            $headers[] = 'Lic. houder';
++            // TWEAK END LTNC.
+         }
+ 
+         $extrafields = \core_user\fields::get_identity_fields($this->context);
+diff --git a/mod/quiz/classes/local/reports/attempts_report_table.php b/mod/quiz/classes/local/reports/attempts_report_table.php
+index eb15fff95b4..daac96a7c6d 100644
+--- a/mod/quiz/classes/local/reports/attempts_report_table.php
++++ b/mod/quiz/classes/local/reports/attempts_report_table.php
+@@ -533,12 +533,14 @@ abstract class attempts_report_table extends \table_sql {
+                 ->excluding('id', 'idnumber', 'picture', 'imagealt', 'institution', 'department', 'email');
+         $userfields = $userfieldsapi->get_sql('u', true, '', '', false);
+ 
++        // TWEAK START LDESIGN.
+         $fields .= '
+                 quiza.uniqueid AS usageid,
+                 quiza.id AS attempt,
+                 u.id AS userid,
+                 u.idnumber,
+                 u.picture,
++                u.site_id,
+                 u.imagealt,
+                 u.institution,
+                 u.department,
+@@ -550,6 +552,7 @@ abstract class attempts_report_table extends \table_sql {
+                 CASE WHEN quiza.timefinish = 0 THEN null
+                      WHEN quiza.timefinish > quiza.timestart THEN quiza.timefinish - quiza.timestart
+                      ELSE 0 END AS duration';
++        // TWEAK END LDESIGN.
+             // To explain that last bit, timefinish can be non-zero and less
+             // than timestart when you have two load-balanced servers with very
+             // badly synchronised clocks, and a student does a really quick attempt.
+diff --git a/mod/quiz/report/overview/overview_table.php b/mod/quiz/report/overview/overview_table.php
+index 89f1ad1405d..30971963b99 100644
+--- a/mod/quiz/report/overview/overview_table.php
++++ b/mod/quiz/report/overview/overview_table.php
+@@ -318,6 +318,12 @@ class quiz_overview_table extends attempts_report_table {
+         return $this->make_review_link($grade, $attempt, $slot);
+     }
+ 
++    // TWEAK START LDESIGN.
++    public function col_site_id($row) {
++        return \block_dshop\themehelper::getSiteNameById($row->site_id);
++    }
++    // TWEAK START LDESIGN.
++
+     public function col_regraded($attempt) {
+         if ($attempt->regraded == '') {
+             return '';
+diff --git a/mod/scorm/report/userreport.php b/mod/scorm/report/userreport.php
+index b16d26862bd..9d78c524219 100644
+--- a/mod/scorm/report/userreport.php
++++ b/mod/scorm/report/userreport.php
+@@ -52,7 +52,10 @@ $PAGE->set_secondary_active_tab('scormreport');
+ // Checking login +logging +getting context.
+ require_login($course, false, $cm);
+ $contextmodule = context_module::instance($cm->id);
+-require_capability('mod/scorm:viewreport', $contextmodule);
++// TWEAK START LDESIGN.
++$context = context_course::instance(1, MUST_EXIST);
++require_capability('block/dshop:manager', $context);
++// TWEAK END LDESIGN.
+ 
+ // Check user has group access.
+ if (!groups_user_groups_visible($course, $userid, $cm)) {
+diff --git a/mod/scorm/report/userreporttracks.php b/mod/scorm/report/userreporttracks.php
+index 1382ce49ab2..e61e7403678 100644
+--- a/mod/scorm/report/userreporttracks.php
++++ b/mod/scorm/report/userreporttracks.php
+@@ -51,7 +51,10 @@ $PAGE->set_url($url);
+ // Checking login +logging +getting context.
+ require_login($course, false, $cm);
+ $contextmodule = context_module::instance($cm->id);
+-require_capability('mod/scorm:viewreport', $contextmodule);
++// TWEAK START LDESIGN.
++$context = context_course::instance(1, MUST_EXIST);
++require_capability('block/dshop:manager', $context);
++// TWEAK END LDESIGN.
+ 
+ // Check user has group access.
+ if (!groups_user_groups_visible($course, $userid, $cm)) {
+diff --git a/question/type/questiontypebase.php b/question/type/questiontypebase.php
+index 78f585d7f4d..7c83b07ebd8 100644
+--- a/question/type/questiontypebase.php
++++ b/question/type/questiontypebase.php
+@@ -1137,7 +1137,9 @@ class question_type {
+      * @param object $answer the DB row from the question_answers table plus extra answer fields.
+      * @return question_answer
+      */
+-    protected function make_answer($answer) {
++    // TWEAK START LDESIGN.
++    public function make_answer($answer) {
++        // TWEAK END LDESIGN.
+         return new question_answer($answer->id, $answer->answer,
+                     $answer->fraction, $answer->feedback, $answer->feedbackformat);
+     }
