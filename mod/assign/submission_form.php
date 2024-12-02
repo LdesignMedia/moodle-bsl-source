@@ -48,10 +48,10 @@ class mod_assign_submission_form extends moodleform {
         // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         global $DB;
         $currentinstanceid = (int)$assign->get_instance()->id;
-        $sql = 'SELECT *
-                FROM {dshop_assign}
-                WHERE FIND_IN_SET(' . $currentinstanceid . ', assign_ids)';
-        $results = $DB->get_records_sql($sql);
+        $sql = "SELECT *
+                WHERE :assignid = ANY (string_to_array(assign_ids, ',')::int[])";
+        $params = ['assignid' => $currentinstanceid];
+        $results = $DB->get_records_sql($sql, $params);
         foreach ($results as $result) {
             $assigns = explode(',', $result->assign_ids) ?? [];
             foreach ($assigns as $assignid) {
