@@ -108,9 +108,10 @@ class feedback_item_multichoice extends feedback_item_base {
      *
      * @return array|null
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         $info = $this->get_info($item);
 
         $analysed_item = array();
@@ -125,9 +126,10 @@ class feedback_item_multichoice extends feedback_item_base {
         }
 
         //get the values
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item), $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if (!$values) {
             return null;
         }
@@ -208,12 +210,13 @@ class feedback_item_multichoice extends feedback_item_base {
         return $printval;
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
         global $OUTPUT;
 
         $analysed_item = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if ($analysed_item) {
             $itemname = $analysed_item[1];
             echo "<table class=\"analysis itemtype_{$item->typ}\">";
@@ -254,13 +257,14 @@ class feedback_item_multichoice extends feedback_item_base {
         }
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
                              $groupid, $courseid = false, object $formdata = null) {
 
         $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if (!$analysed_item) {
             return $row_offset;
         }

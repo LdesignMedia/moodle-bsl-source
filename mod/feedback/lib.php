@@ -2140,13 +2140,14 @@ function feedback_update_values() {
  * @param $filteringdata
  * @return array the value-records
  */
-// TWEAK START LDESIGN.
+// START BSL TWEAK - Handle additional analysis parameters
+// Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
 function feedback_get_group_values($item,
                                    $groupid = false,
                                    $courseid = false,
                                    $ignore_empty = false,
                                    $filteringdata = false) {
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
 
     global $CFG, $DB;
 
@@ -2161,7 +2162,8 @@ function feedback_get_group_values($item,
             $ignore_empty_select = "";
         }
 
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Provide additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $query = 'SELECT fbv .  *, fbc.timemodified
                     FROM {feedback_value} fbv, {feedback_completed} fbc, {groups_members} gm
                    WHERE fbv.item = :itemid
@@ -2170,7 +2172,7 @@ function feedback_get_group_values($item,
                          '.$ignore_empty_select.'
                          AND gm.groupid = :groupid
                 ORDER BY fbc.timemodified';
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         $params += array('itemid' => $item->id, 'groupid' => $groupid);
         $values = $DB->get_records_sql($query, $params);
 
@@ -2191,12 +2193,13 @@ function feedback_get_group_values($item,
         } else {
             $select = "item = :itemid ".$ignore_empty_select;
             $params += array('itemid' => $item->id);
-            // TWEAK START LDESIGN.
+            // START BSL TWEAK - Provide additional analysis parameters
+            // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
             if (!empty($filteringdata)) {
                 $select .= ' AND fbc.timemodified BETWEEN :from AND :till';
                 $params += ['from' => $filteringdata->from, 'till' => $filteringdata->till];
             }
-            // TWEAK END LDESIGN.
+            // END BSL TWEAK.
 
             $values = $DB->get_records_select('feedback_value', $select, $params);
         }

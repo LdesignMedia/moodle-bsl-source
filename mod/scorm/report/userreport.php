@@ -52,10 +52,11 @@ $PAGE->set_secondary_active_tab('scormreport');
 // Checking login +logging +getting context.
 require_login($course, false, $cm);
 $contextmodule = context_module::instance($cm->id);
-// TWEAK START LDESIGN.
+// START BSL TWEAK - Handle Dshop manager capability
+// Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
 $context = context_course::instance(1, MUST_EXIST);
 require_capability('block/dshop:manager', $context);
-// TWEAK END LDESIGN.
+// END BSL TWEAK.
 
 // Check user has group access.
 if (!groups_user_groups_visible($course, $userid, $cm)) {

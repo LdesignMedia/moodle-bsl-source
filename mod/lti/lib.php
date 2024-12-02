@@ -383,9 +383,10 @@ function lti_get_coursemodule_info($coursemodule) {
     // Does the link open in a new window?
     $launchcontainer = lti_get_launch_container($lti, $toolconfig);
     if ($launchcontainer == LTI_LAUNCH_CONTAINER_WINDOW) {
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Provide AJAX call for LTI container
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $info->onclick = "window.open('/mod/lti/launch.php?id=".$coursemodule->id."', 'lti-".$coursemodule->id."'); return false;";
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
     }
 
     $info->name = $lti->name;

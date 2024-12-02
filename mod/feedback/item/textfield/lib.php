@@ -103,15 +103,17 @@ class feedback_item_textfield extends feedback_item_base {
      * @param $filterdata
      * @return stdClass
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     protected function get_analysed($item, $groupid = false, $courseid = false, $filterdata = false) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         $analysed_val = new stdClass();
         $analysed_val->data = null;
         $analysed_val->name = $item->name;
 
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $values = feedback_get_group_values($item, $groupid, $courseid, $filterdata);
         if ($values) {
             $data = array();
@@ -122,7 +124,7 @@ class feedback_item_textfield extends feedback_item_base {
             $analysed_val->data = $data;
             $analysed_val->dates = $dates;
         }
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         return $analysed_val;
     }
 
@@ -134,10 +136,11 @@ class feedback_item_textfield extends feedback_item_base {
         return $value->value;
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
         $values = feedback_get_group_values($item, $groupid, $courseid, $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if ($values) {
             echo "<table class=\"analysis itemtype_{$item->typ}\">";
             echo '<tr><th class="text-start">';
@@ -157,31 +160,34 @@ class feedback_item_textfield extends feedback_item_base {
         }
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
                              $groupid, $courseid = false, object $formdata) {
 
         $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);
         $data = $analysed_item->data;
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $dates = $analysed_item->dates ?? [];
         $dataformat = clone $xls_formats->default;
         $dataformat->set_num_format(15);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if (is_array($data)) {
             $worksheet->write_string($row_offset, 2, htmlspecialchars_decode($data[0], ENT_QUOTES), $xls_formats->value_bold);
             $row_offset++;
             $sizeofdata = count($data);
             for ($i = 1; $i < $sizeofdata; $i++) {
-                // TWEAK START LDESIGN.
+                // START BSL TWEAK - Handle additional analysis parameters
+                // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
                 $worksheet->write_string($row_offset, 2, date('d-m-Y', $dates[$i]), $dataformat);
                 $worksheet->write_string($row_offset, 3, htmlspecialchars_decode($data[$i], ENT_QUOTES), $xls_formats->default);
-                // TWEAK END LDESIGN.
+                // END BSL TWEAK.
                 $row_offset++;
             }
         }

@@ -6138,9 +6138,10 @@ function send_password_change_confirmation_email($user, $resetrecord) {
     $subject = get_string('emailresetconfirmationsubject', '', format_string($site->fullname));
 
     // Directly email rather than using the messaging system to ensure its not routed to a popup or jabber.
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Use custom mailer instead. It is impossible to change settings of core one.
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     return \block_dshop\helper::email_to_user($user, $supportuser, $subject, html_to_text($message), $message);
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
 }
 
 /**

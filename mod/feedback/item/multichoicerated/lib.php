@@ -114,9 +114,10 @@ class feedback_item_multichoicerated extends feedback_item_base {
      * @param $filteringdata
      * @return array|null
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         $analysed_item = array();
         $analysed_item[] = $item->typ;
         $analysed_item[] = $item->name;
@@ -130,9 +131,10 @@ class feedback_item_multichoicerated extends feedback_item_base {
         }
 
         //die Werte holen
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $values = feedback_get_group_values($item, $groupid, $courseid, $this->ignoreempty($item), $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         if (!$values) {
             return null;
         }
@@ -233,7 +235,8 @@ class feedback_item_multichoicerated extends feedback_item_base {
         }
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
                              $groupid, $courseid = false, object $formdata) {

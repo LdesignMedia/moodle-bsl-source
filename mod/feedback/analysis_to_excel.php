@@ -28,11 +28,12 @@ require_once("$CFG->libdir/excellib.class.php");
 
 $id = required_param('id', PARAM_INT); // Course module id.
 $courseid = optional_param('courseid', '0', PARAM_INT);
-// TWEAK START LDESIGN.
+// START BSL TWEAK - Handle additional analysis parameters
+// Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
 $from = optional_param('from' , 0 , PARAM_INT);
 $till = optional_param('till' , time(), PARAM_INT);
 $formdata = (object)['from' => $from, 'till' => $till];
-// TWEAK END LDESIGN.
+// END BSL TWEAK.
 $url = new moodle_url('/mod/feedback/analysis_to_excel.php', array('id' => $id));
 if ($courseid) {
     $url->param('courseid', $courseid);
@@ -83,9 +84,10 @@ $xlsformats->procent = $workbook->add_format(['align' => 'left', 'bold' => 1, 'v
 $rowoffset1 = 0;
 $worksheet1->write_string($rowoffset1, 0, userdate(time()), $xlsformats->head1);
 
-// TWEAK START LDESIGN.
+// START BSL TWEAK - Handle additional analysis parameters
+// Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
 $completedscount = $feedbackstructure->count_completed_responses($mygroupid , $formdata);
-// TWEAK END LDESIGN.
+// END BSL TWEAK.
 
 // Get the completeds.
 $completedscount = $feedbackstructure->count_completed_responses($mygroupid);
@@ -118,9 +120,10 @@ foreach ($items as $item) {
         $item,
         $mygroupid,
         $courseid,
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $formdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 }
 
 $workbook->close();

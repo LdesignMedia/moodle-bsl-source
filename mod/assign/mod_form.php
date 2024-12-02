@@ -248,9 +248,10 @@ class mod_assign_mod_form extends moodleform_mod {
         $this->apply_admin_defaults();
 
         $this->add_action_buttons();
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Load dentallect defaults
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $this->set_dentallect_defaults();
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
     }
 
     /**
@@ -409,7 +410,8 @@ class mod_assign_mod_form extends moodleform_mod {
             }
         }
     }
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Load dentallect defaults
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function set_dentallect_defaults() {
         $mform =& $this->_form;
         $mform->setDefault('requiresubmissionstatement', '1');
@@ -420,5 +422,5 @@ class mod_assign_mod_form extends moodleform_mod {
         $mform->setDefault('completion', '2');
         $mform->setDefault('completionusegrade', '1');
     }
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
 }

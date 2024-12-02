@@ -305,9 +305,10 @@ class mod_feedback_structure {
      *
      * @return mixed array of found completeds otherwise false
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function count_completed_responses($groupid = 0, $filterdata = false) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         global $DB;
         if (intval($groupid) > 0) {
             $query = "SELECT COUNT(DISTINCT fbc.id)
@@ -324,12 +325,13 @@ class mod_feedback_structure {
             $query = "SELECT COUNT(fbc.id) FROM {feedback_completed} fbc WHERE fbc.feedback = :feedback";
         }
         $params = ['feedback' => $this->feedback->id, 'groupid' => $groupid, 'courseid' => $this->courseid];
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         if (!empty($filterdata)) {
             $query .= ' AND fbc.timemodified BETWEEN :from AND :till';
             $params += ['from' => $filterdata->from, 'till' => $filterdata->till];
         }
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         return $DB->get_field_sql($query, $params);
     }

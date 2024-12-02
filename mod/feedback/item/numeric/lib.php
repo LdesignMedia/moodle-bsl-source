@@ -106,17 +106,19 @@ class feedback_item_numeric extends feedback_item_base {
      *
      * @return stdClass
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     protected function get_analysed($item, $groupid = false, $courseid = false, $filteringdata = false) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         global $DB;
 
         $analysed = new stdClass();
         $analysed->data = array();
         $analysed->name = $item->name;
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Handle additional analysis parameters
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         $values = feedback_get_group_values($item, $groupid, $courseid, $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         $avg = 0.0;
         $counter = 0;
@@ -144,11 +146,12 @@ class feedback_item_numeric extends feedback_item_base {
         return $value->value;
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
 
         $values = $this->get_analysed($item, $groupid, $courseid, $filteringdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         if (isset($values->data) AND is_array($values->data)) {
             echo "<table class=\"analysis itemtype_{$item->typ}\">";
@@ -178,13 +181,14 @@ class feedback_item_numeric extends feedback_item_base {
         }
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function excelprint_item(&$worksheet, $row_offset,
                              $xls_formats, $item,
                              $groupid, $courseid = false, object $formdata) {
 
         $analysed_item = $this->get_analysed($item, $groupid, $courseid, $formdata);
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
 
         $worksheet->write_string($row_offset, 0, $item->label, $xls_formats->head2);
         $worksheet->write_string($row_offset, 1, $item->name, $xls_formats->head2);

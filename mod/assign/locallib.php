@@ -1493,9 +1493,10 @@ class assign {
         }
 
         $eventtype = ASSIGN_EVENT_TYPE_GRADINGDUE;
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Fix for additional user types.
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         if (!empty($instance->gradingduedate)) {
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
             $event->name = get_string('calendargradingdue', 'assign', $instance->name);
             $event->eventtype = $eventtype;
             $event->timestart = $instance->gradingduedate;
@@ -6600,7 +6601,8 @@ class assign {
         $eventdata->notification    = 1;
         $eventdata->contexturl      = $info->url;
         $eventdata->contexturlname  = $info->assignment;
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Dshop email handling.
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         if (has_capability("mod/assign:receivegradernotifications", $context, $userto)) {
             // Check if user want to get notifications.
             $userto->mail_preference = Dshop_Userhelper::getEmailPreference($userto->id, 'assign');
@@ -6616,7 +6618,7 @@ class assign {
                 \block_dshop\helper::email_to_user($customer, $userfrom, $postsubject, $posttext, $posthtml);
             }
         }
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
     }
 
     /**

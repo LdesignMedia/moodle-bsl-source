@@ -44,7 +44,8 @@ class mod_assign_submission_form extends moodleform {
         global $USER;
         $mform = $this->_form;
         list($assign, $data) = $this->_customdata;
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Dshop handling of submission forms
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         global $DB;
         $currentinstanceid = (int)$assign->get_instance()->id;
         $sql = 'SELECT *
@@ -66,7 +67,7 @@ class mod_assign_submission_form extends moodleform {
                 break;
             }
         }
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
         $instance = $assign->get_instance();
         if ($instance->teamsubmission) {
             $submission = $assign->get_group_submission($data->userid, 0, true);

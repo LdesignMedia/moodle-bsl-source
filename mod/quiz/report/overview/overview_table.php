@@ -318,11 +318,12 @@ class quiz_overview_table extends attempts_report_table {
         return $this->make_review_link($grade, $attempt, $slot);
     }
 
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Add site_id support
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function col_site_id($row) {
         return \block_dshop\themehelper::getSiteNameById($row->site_id);
     }
-    // TWEAK START LDESIGN.
+    // END BSL TWEAK.
 
     public function col_regraded($attempt) {
         if ($attempt->regraded == '') {

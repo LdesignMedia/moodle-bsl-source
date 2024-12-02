@@ -45,7 +45,8 @@ class quizaccess_timelimit extends access_rule_base {
     }
 
     public function end_time($attempt) {
-        // TWEAK START LDESIGN.
+        // START BSL TWEAK - Modify attempt end times for quiz support
+        // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
         global $DB, $USER;
         $sql = 'SELECT * FROM {dshop_exam_students}
                 WHERE user_id = :userid AND available_until BETWEEN :start AND :end';
@@ -62,7 +63,7 @@ class quizaccess_timelimit extends access_rule_base {
             $extratime = $timelimit * 25 / 100;
         }
         return $attempt->timestart + $this->quiz->timelimit + $extratime;
-        // TWEAK END LDESIGN.
+        // END BSL TWEAK.
     }
 
     public function time_left_display($attempt, $timenow) {

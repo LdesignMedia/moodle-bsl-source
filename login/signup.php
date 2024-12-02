@@ -25,9 +25,10 @@
  */
 
 require('../config.php');
-// TWEAK START LDESIGN.
+// START BSL TWEAK - Custom sing up page handling.
+// Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
 redirect(new moodle_url('/blocks/dshop/register'));
-// TWEAK END LDESIGN.
+// END BSL TWEAK.
 require_once($CFG->dirroot . '/user/editlib.php');
 require_once($CFG->libdir . '/authlib.php');
 require_once('lib.php');

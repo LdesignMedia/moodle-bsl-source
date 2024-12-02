@@ -136,11 +136,12 @@ abstract class feedback_item_base {
      * @param object $formdata
      * @return integer the new row_offset
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     abstract public function excelprint_item(&$worksheet, $row_offset,
                                       $xls_formats, $item,
                                       $groupid, $courseid = false, object $formdata);
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
 
     /**
      * Prints analysis for the current item
@@ -152,9 +153,10 @@ abstract class feedback_item_base {
      * @param $filteringdata
      * @return integer the new itemnr
      */
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     abstract public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false);
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
 
     /**
      * Prepares the value for exporting to Excel
@@ -322,12 +324,13 @@ class feedback_item_pagebreak extends feedback_item_base {
     public function get_hasvalue() {
         return 0;
     }
-    // TWEAK START LDESIGN.
+    // START BSL TWEAK - Handle additional analysis parameters
+    // Copyright (C) 2024 Springer Media B.V. - All Rights Reserved.
     public function excelprint_item(&$worksheet, $row_offset,
                             $xls_formats, $item,
                             $groupid, $courseid = false, object $formdata) {
     }
-    // TWEAK END LDESIGN.
+    // END BSL TWEAK.
     public function print_analysed($item, $itemnr = '', $groupid = false, $courseid = false, $filteringdata = false) {
     }
     public function get_printval($item, $value) {
